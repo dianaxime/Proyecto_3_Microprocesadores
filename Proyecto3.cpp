@@ -32,6 +32,23 @@ Calculardesv(const float *A, float *C, int numElements, float promedio)
     }
 }
 
+__global__ void
+EncontrarSeco(const float *A, float *C, int numElements)
+{
+	int seco = 0;
+	int i = blockDim.x * blockIdx.x + threadIdx.x;
+	if (i < numElements)
+	{
+		if (seco == 0) {
+			if (A[i] >= 340) {
+				float temp = C[i] / 3600000;
+				printf("Se tardo %f horas en secarse la planta\n", temp);
+				seco = 1;
+			}
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
     // Lectura de datos de archivo .CSV
@@ -47,9 +64,11 @@ int main(int argc, char *argv[])
     // Revision de los valores de retorno de las llamadas a CUDA
     cudaError_t err = cudaSuccess;
 
-    // Inicializamos el valor del tamaño en 75,000
-    int numElements = 75000;
 
+    // Inicializamos el valor del tamaño en 75,000
+    int numElements = 750;
+
+	size_t size = numElements * sizeof(float);
     // Asignar el valor de entrada del vector de mediciones
     float *h_hum = (float *)malloc(size);
 
@@ -68,12 +87,14 @@ int main(int argc, char *argv[])
     // Introducir los valores del medidos por el sensor al arreglo
     for (int i = 0; i < numElements; ++i)
     {
-        getline(lectura, linea);
+        /*getline(lectura, linea);
         stringstream registro(linea);
-        getline(registro, linea, ';');
-        h_hum[i] = (float)dato;
-        h_desv[i] = 0;
+        getline(registro, linea, ',');*/
+        h_hum[i] = i;
+        h_desv[i] = rand();
     }
+
+	
 
     // Asignar el vector de entrada del device de mediciones
     float *d_hum = NULL;
@@ -117,7 +138,7 @@ int main(int argc, char *argv[])
     int threadsPerBlock = 256;
     int blocksPerGrid =(numElements + threadsPerBlock - 1) / threadsPerBlock;
     printf("CUDA kernel lanzado con %d bloques de %d hilos\n", blocksPerGrid, threadsPerBlock);
-    Calculardesv<<<blocksPerGrid, threadsPerBlock>>>(d_hum, d_desv, numElements, promedio);
+	EncontrarSeco<<<blocksPerGrid, threadsPerBlock>>>(d_hum, d_desv, numElements);
     err = cudaGetLastError();
 
     if (err != cudaSuccess)
