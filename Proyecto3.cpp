@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include<string.h>
+#include <sstream>
 
 // Libreria para la ejecucion de la subrutinas en CUDA
 #include <cuda_runtime.h>
@@ -46,14 +48,8 @@ EncontrarSeco(const float *A, float *C, float *temp, int numElements)
 int main(int argc, char *argv[])
 {
     // Lectura de datos de archivo .CSV
-    if (argc!=1){
-        printf("La direccion de su archivo NO es valida \n");
-        exit(1);
-    }
     ifstream lectura;
-    lectura.open(argv[0], ios::in);
-
-
+    lectura.open("datos.csv",ios::in);
 
     // Revision de los valores de retorno de las llamadas a CUDA
     cudaError_t err = cudaSuccess;
@@ -86,14 +82,28 @@ int main(int argc, char *argv[])
     h_temp = 0;
 
     // Introducir los valores del medidos por el sensor al arreglo
-    for (int i = 0; i < numElements; ++i)
-    {
-        h_hum[i] = i;
-        h_desv[i] = 0;
-        h_tempv[i] = rand();
-    }
+    string linea, dato;
 
-    
+    // Lee la linea del archivo
+    for (int fila=0;  getline(lectura, linea); fila++ )
+    {
+        stringstream registro(linea);
+
+        // Para cada linea separa los datos (tiempo y humedad)
+        for (int col=0;  getline(registro, dato, ','); col++ )
+        {
+            // Dependiendo de cual es la columna del dato lo guarda en ese vector 
+            switch(col){
+                case 0:
+                    h_tempv[fila] = stof(dato);
+                break; 
+                case 1:
+                    h_hum[fila] = stof(dato);
+                break;
+            }
+        }
+        h_desv[fila] = 0;
+    }
 
     // Asignar el vector de entrada del device de mediciones
     float *d_hum = NULL;
