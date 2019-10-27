@@ -34,17 +34,6 @@ Calculardesv(const float *A, float *C, int numElements, float promedio)
     }
 }
 
-__global__ void
-EncontrarSeco(const float *A, float *C, float *temp, int numElements)
-{
-    int seco = 0;
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    while (i < numElements && A[i]<340)
-    {
-        temp = C[i] / 3600000;
-    }
-}
-
 int main(int argc, char *argv[])
 {
     // Lectura de datos de archivo .CSV
@@ -56,7 +45,7 @@ int main(int argc, char *argv[])
 
 
     // Inicializamos el valor del tamaño en 75,000
-    int numElements = 750;
+    int numElements = 75000;
 
     size_t size = numElements * sizeof(float);
 
@@ -66,44 +55,44 @@ int main(int argc, char *argv[])
     // Asignar el valor de entrada del vector del tiempo de las mediciones
     float *h_tempv = (float *)malloc(size);
 
-    // Asignar el valor de entrada del vector del tiempo en secarse
-    float *h_temp = (float *)malloc(sizeof(float));
-
     // Asignar el valor de entrada del vector de la desviacion 
     float *h_desv = (float *)malloc(size);
 
     // Verificacion de las asignaciones
-    if (h_hum == NULL || h_desv == NULL || h_temp == NULL || h_tempv == NULL)
+    if (h_hum == NULL || h_desv == NULL || h_tempv == NULL)
     {
         fprintf(stderr, "ERROR al asignar los vectores del host\n");
         exit(EXIT_FAILURE);
     }
 
-    h_temp = 0;
+    float h_temp = 0;
 
     // Introducir los valores del medidos por el sensor al arreglo
     string linea, dato;
 
     // Lee la linea del archivo
-    for (int fila=0;  getline(lectura, linea); fila++ )
+    int fila, col;
+    for (fila=0;  getline(lectura, linea); fila++ )
     {
         stringstream registro(linea);
 
         // Para cada linea separa los datos (tiempo y humedad)
-        for (int col=0;  getline(registro, dato, ','); col++ )
+        for (col=0;  getline(registro, dato, ';'); col++ )
         {
             // Dependiendo de cual es la columna del dato lo guarda en ese vector 
             switch(col){
                 case 0:
-                    h_tempv[fila] = stof(dato);
+                    h_tempv[fila] = strtof((dato).c_str(),0);
                 break; 
                 case 1:
-                    h_hum[fila] = stof(dato);
+                    h_hum[fila] = strtof((dato).c_str(),0);
                 break;
             }
         }
         h_desv[fila] = 0;
     }
+
+    numElements = fila;
 
     // Asignar el vector de entrada del device de mediciones
     float *d_hum = NULL;
@@ -122,26 +111,6 @@ int main(int argc, char *argv[])
     if (err != cudaSuccess)
     {
         fprintf(stderr, "ERROR al asignar el vector DEVICE con la desviacion (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-
-    // Asignar el vector de entrada del device de los tiempos
-    float *d_tempv = NULL;
-    err = cudaMalloc((void **)&d_tempv, size);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "ERROR al asignar el vector DEVICE con los tiempos (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-
-    // Asignar el vector de entrada del device del tiempo
-    float *d_temp = NULL;
-    err = cudaMalloc((void **)&d_temp, sizeof(float));
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "ERROR al asignar el vector DEVICE con el tiempo (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
@@ -197,33 +166,16 @@ int main(int argc, char *argv[])
     // Mostrar el resultado en pantalla
     printf("El promedio de humedad es de %f con una desviacion estandar de %f \n", promedio, desv);
 
-    // Copiar el vector de la memoria del host a la memoria del device
-    err = cudaMemcpy(d_tempv, h_tempv, size, cudaMemcpyHostToDevice);
+    int i=0; 
 
-    if (err != cudaSuccess)
+    //Observar cuanto tiempo se tardo en secarse la planta
+
+    while (i < numElements && h_hum[i]<340)
     {
-        fprintf(stderr, "ERROR al copiar el vector de tiempos del host al device (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
+        h_temp = h_tempv[i] / 3600000;
+        i++;
     }
-
-    EncontrarSeco<<<blocksPerGrid, threadsPerBlock>>>(d_hum, d_tempv, d_temp, numElements);
-    err = cudaGetLastError();
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Fallo en lanzamiento del Kernel (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-
-    // Copiar el resultado de la memoria del device a la memoria del host 
-    err = cudaMemcpy(h_temp, d_temp, sizeof(float), cudaMemcpyDeviceToHost);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "ERROR en la copia de del dato del device al host (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-
+    
     printf("Se tardo %f horas en secarse la planta\n", h_temp);
 
     // Liberar la memoria del device
@@ -243,26 +195,9 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    err = cudaFree(d_tempv);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "ERROR al liberar la memoria del device del vector de los tiempos (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-
-    err = cudaFree(d_temp);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "ERROR al liberar la memoria del device del tiempo (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-
     // Liberar la memoria del host
     free(h_hum);
     free(h_desv);
-    free(h_temp);
     free(h_tempv);
 
     // Reiniciar el Device 
