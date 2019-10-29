@@ -8,6 +8,7 @@
 */
 //#include <iostream>
 //#include <fstream>
+//constaantes necesarias para inicializar sensor
 int rainPin = A0;
 int greenLED = 6;
 int redLED = 7;
@@ -15,6 +16,7 @@ int redLED = 7;
 int thresholdValue = 200;
 String fileName;
 
+//setup para guardar lecturas en el documento .csv
 void setup(){
   pinMode(rainPin, INPUT);
   pinMode(greenLED, OUTPUT);
@@ -29,18 +31,10 @@ void setup(){
 
 void loop() {
   // read the input on analog pin 0:
-  int sensorValue = analogRead(rainPin);
+  int sensorValue = analogRead(rainPin); //valor de la lectura de humedad
+  //proceso para guarda en el .csv
   Serial.print("DATA,TIME,TIMER,");
   Serial.println(sensorValue);
-  /*if(sensorValue < thresholdValue){
-    //Serial.println(" - Doesn't need watering");
-    digitalWrite(redLED, LOW);
-    digitalWrite(greenLED, HIGH);
-  }
-  else {
-    //Serial.println(" - Time to water your plant");
-    digitalWrite(redLED, HIGH);
-    digitalWrite(greenLED, LOW);
-  }*/
+  
   delay(500);
 }
