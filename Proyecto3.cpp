@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
 
     // Inicializamos el valor del tamaño en 75,000
-    int numElements = 75000;
+    int numElements = 75004;
 
     size_t size = numElements * sizeof(float);
 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 
     while (i < numElements && h_hum[i]<340)
     {
-        h_temp = h_tempv[i] / 3600000;
+        h_temp = h_tempv[i] / 3600;
         i++;
     }
     
